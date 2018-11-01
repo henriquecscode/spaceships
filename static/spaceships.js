@@ -6,6 +6,8 @@ var FPS = 60;
 
 var player_wingspan = 16;
 var player_height = 16;
+var bullet_size = 2;
+var bullet_delay = 100;
 
 var socket = io();
 var socket_id;
@@ -20,7 +22,9 @@ console.log()
 setInterval(function () {
   //console.log('processing');
   let movement = controller.movement();
+  controller.shooting = false;
   //console.log(movement);
+  console.log(movement);
   socket.emit('movement', movement);
 }, 1000 / FPS)
 
@@ -37,12 +41,16 @@ socket.on('update', function (players) {
   context.fillRect(0, 0, w_canvas, h_canvas);
 
   for (var id in players) {
-    let player = players[id].player.state;
+
+    let player = players[id].player;
+    console.log(player);
     //console.log(parseInt(player.x), parseInt(player.y), player.direction);
-    Player_Print(parseInt(player.x), parseInt(player.y), player.direction);
+    var color = "#0000ff";
+    if (id === socket_id) color = "#ffffff";
+    Player_Print(parseInt(player.state.x), parseInt(player.state.y), player.state.direction, color);
+    Bullet_Print(player)
   }
-  //let this_player = players[this_id].player.state;
-  //Player_Print(parseInt(player.x), parseInt(player.y), player.direction, '#ffffff');
+
 });
 
 var controller = {
@@ -50,7 +58,8 @@ var controller = {
   forward: false,
   left: false,
   right: false,
-  shooting: false,
+  is_shooting: false,
+  hold_shooting: false,
 
   keyListener: function (event) {
     var key_state = event.type == "keydown" ? true : false;
@@ -67,16 +76,33 @@ var controller = {
         controller.right = key_state;
         break;
       case 32: //Space key
-        if (shooting_state && !gameover) bullets.push(new Bullet(player.x, player.y, player.direction));
-        console.log(bullets);
+
+        if (key_state){
+          controller.is_shooting = true;
+          controller.hold_shooting = controller.is_shooting && key_state; //Is hold shooting if was shooting and shot again
+        }
+
+        if(controller.hold_shooting){
+          controller.is_shooting = false; //If is holding cannot shout
+          hold = setTimeout(function(){
+            controller.is_shooting= true;
+          }, bullet_delay) //Can shot after the delay
+        }
+
+        if(shooting_state){
+          clearTimeout(hold)
+        }
+
+
         break;
       case 13:
         if (gameover && !key_state) Reset();
+        break;
     }
   },
 
   movement: function () {
-    return [controller.forward, controller.left, controller.right, controller.shooting];
+    return [controller.forward, controller.left, controller.right, controller.is_shooting];
   }
 
 }
@@ -100,6 +126,17 @@ function Player_Print(x, y, direction, color = "#0000ff") {
   context.rotate(-direction); //Cancels the rotation
   context.translate(-x, -y); //Makes the coords absolute again
 
+}
+
+function Bullet_Print(player) {
+  let bullets = player.bullets
+  if (!bullets) return
+  for (var bullet of bullets) {
+    context.fillStyle = "#ff0000";
+    context.beginPath();
+    context.arc(bullet[0], bullet[1], bullet_size, 0, 2 * Math.PI);
+    context.fill();
+  }
 }
 
 document.addEventListener("keydown", controller.keyListener);
