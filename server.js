@@ -32,6 +32,7 @@ turning_speed = 5 / 360 * 2 * Math.PI; //Affects the speed with which the player
 forward_speed = 0.3;
 bullet_speed = 5; //Affects the speed of the bullets
 bullet_size = 2;
+bullet_delay = 1000; //Miliseconds
 max_velocity = 3;
 player_hitbox = 5;
 
@@ -43,6 +44,7 @@ io.on('connection', function (socket) {
     players[socket.id] = {
       player: new Player(),
       movement: [],
+      shooting: false,
     };
 
     socket.emit('id', socket.id); //Tells the client its id
@@ -55,21 +57,21 @@ io.on('connection', function (socket) {
   });
 
   socket.on('movement', function (movement) {
-    //console.log('calculating');
     var player = players[socket.id] || {};
-    //console.log(player.player)
-    console.log(movement);
     player.movement = movement;
+  });
+
+  socket.on('shooting', function(){
+    players[socket.id].shooting = true;
   })
 });
 
 setInterval(function () {
-  //console.log('emiting');
-  //console.log(players);
   for (var id in players) {
     let player = players[id];
     if (player) {
-      player.player.movement(player.movement[0], player.movement[1], player.movement[2], player.movement[3]);
+      player.player.movement(player.movement[0], player.movement[1], player.movement[2], player.shooting);
+      if(player.shooting) player.shooting = false; //Already shot so cancel the next shooting
       player.player.shooting();
     }
   }
@@ -87,7 +89,7 @@ class Player {
     this.velocity = 0;
     this.velocity_direction = 0;
 
-    this.bullets = [[-1,-1,0,0]];
+    this.bullets = [[-1, -1, 0, 0]];
   }
 
   movement(forward, left, right, shooting) {
@@ -134,7 +136,9 @@ class Player {
       this.velocity -= forward_speed; //Friction to prevent infinite growth
     }
 
+    //console.log("shooting is", shooting);
     if (shooting) {
+      //console.log("wtf");
       var bullet_x = this.state.x
       var bullet_y = this.state.y
       var bullet_x_velocity = bullet_speed * Math.sin(this.state.direction) + x_velocity;
@@ -148,7 +152,7 @@ class Player {
   }
 
   shooting() {
-    console.log('shooting', this.bullets);
+    //console.log('shooting', this.bullets.length);
     if (this.bullets.length > 1) {
       for (var bullet of this.bullets) {
         bullet[0] += bullet[2];

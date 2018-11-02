@@ -24,7 +24,7 @@ setInterval(function () {
   let movement = controller.movement();
   controller.shooting = false;
   //console.log(movement);
-  console.log(movement);
+  //console.log(movement);
   socket.emit('movement', movement);
 }, 1000 / FPS)
 
@@ -43,13 +43,13 @@ socket.on('update', function (players) {
   for (var id in players) {
 
     let player = players[id].player;
-    console.log(player);
-    //console.log(parseInt(player.x), parseInt(player.y), player.direction);
     var color = "#0000ff";
     if (id === socket_id) color = "#ffffff";
     Player_Print(parseInt(player.state.x), parseInt(player.state.y), player.state.direction, color);
     Bullet_Print(player)
   }
+
+
 
 });
 
@@ -58,8 +58,6 @@ var controller = {
   forward: false,
   left: false,
   right: false,
-  is_shooting: false,
-  hold_shooting: false,
 
   keyListener: function (event) {
     var key_state = event.type == "keydown" ? true : false;
@@ -76,24 +74,9 @@ var controller = {
         controller.right = key_state;
         break;
       case 32: //Space key
-
-        if (key_state){
-          controller.is_shooting = true;
-          controller.hold_shooting = controller.is_shooting && key_state; //Is hold shooting if was shooting and shot again
-        }
-
-        if(controller.hold_shooting){
-          controller.is_shooting = false; //If is holding cannot shout
-          hold = setTimeout(function(){
-            controller.is_shooting= true;
-          }, bullet_delay) //Can shot after the delay
-        }
-
         if(shooting_state){
-          clearTimeout(hold)
+          socket.emit('shooting');
         }
-
-
         break;
       case 13:
         if (gameover && !key_state) Reset();
@@ -102,7 +85,7 @@ var controller = {
   },
 
   movement: function () {
-    return [controller.forward, controller.left, controller.right, controller.is_shooting];
+    return [controller.forward, controller.left, controller.right];
   }
 
 }
