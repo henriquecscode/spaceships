@@ -1,7 +1,7 @@
 //Client side
 
 var w_canvas = 900;
-var h_canvas = 600;
+var h_canvas = 580;
 var FPS = 60;
 
 var player_wingspan = 16;
@@ -11,15 +11,19 @@ var bullet_delay = 100;
 
 var socket = io();
 var socket_id;
+var gameover = false;
 
 var context = document.querySelector("canvas").getContext('2d');
 context.canvas.width = w_canvas;
 context.canvas.height = h_canvas;
 
-socket.emit('joining');
-console.log()
+var gameover_text = "Press ENTER to restart";
+context.font = "25px Arial";
+var gameover_text_width = context.measureText(gameover_text).width;
 
-setInterval(function () {
+socket.emit('joining'); //Say that we joined
+
+setInterval(function () { //Send to the server our inputs
   //console.log('processing');
   let movement = controller.movement();
   controller.shooting = false;
@@ -29,27 +33,33 @@ setInterval(function () {
 }, 1000 / FPS)
 
 
-socket.on('connect', () => {
+socket.on('connect', () => { //When the server gets our answer it tells us the id
   socket_id = socket.id;
 });
 
-socket.on('update', function (players) {
+socket.on('update', function (players) { //When the server tells us the statee of the game
 
   context.clearRect(0, 0, w_canvas, h_canvas);
   //Background
   context.fillStyle = "#000000";
   context.fillRect(0, 0, w_canvas, h_canvas);
 
-  for (var id in players) {
+  for (var id in players) { //Go through all the players
 
     let player = players[id].player;
     var color = "#0000ff";
     if (id === socket_id) color = "#ffffff";
-    Player_Print(parseInt(player.state.x), parseInt(player.state.y), player.state.direction, color);
-    Bullet_Print(player)
+    if (!player.state.gameover) Player_Print(parseInt(player.state.x), parseInt(player.state.y), player.state.direction, color); //Print the player
+    Bullet_Print(player); //Print the bullets of that player
+    if (id === socket_id && player.state.gameover) { //We were killed
+
+      //console.log("we were destroyed");
+      context.fillStyle = "#ffffff";
+      context.font = "25px Arial";
+      //context.fillText(total_score, w_canvas / 2 - total_score_width / 2, h_canvas / 2);
+      context.fillText(gameover_text, w_canvas / 2 - gameover_text_width / 2, h_canvas / 2 + 30); //Gameover message
+    }
   }
-
-
 
 });
 
@@ -74,12 +84,12 @@ var controller = {
         controller.right = key_state;
         break;
       case 32: //Space key
-        if(shooting_state){
+        if (shooting_state) {
           socket.emit('shooting');
         }
         break;
       case 13:
-        if (gameover && !key_state) Reset();
+        socket.emit('respawn');
         break;
     }
   },

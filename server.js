@@ -23,22 +23,22 @@ server.listen(5000, function () {
 //Calculations
 
 var w_canvas = 900;
-var h_canvas = 600;
+var h_canvas = 580;
 var FPS = 60;
 
 var players = {};
 
-turning_speed = 5 / 360 * 2 * Math.PI; //Affects the speed with which the player turns
-forward_speed = 0.3;
-bullet_speed = 5; //Affects the speed of the bullets
-bullet_size = 2;
-bullet_delay = 1000; //Miliseconds
-max_velocity = 3;
-player_hitbox = 5;
+var turning_speed = 5 / 360 * 2 * Math.PI; //Affects the speed with which the player turns
+var forward_speed = 0.3;
+var bullet_speed = 5; //Affects the speed of the bullets
+var bullet_size = 2;
+var max_velocity = 3;
+var player_hitbox = 5;
 
 // Add the WebSocket handlers
 io.on('connection', function (socket) {
 
+  //When a new player joins
   socket.on('joining', function () {
     console.log('Connect from ' + socket.id);
     players[socket.id] = {
@@ -51,32 +51,75 @@ io.on('connection', function (socket) {
   }
   )
 
+  //When a player leaves
   socket.on('disconnect', function () {
     console.log(socket.id + " Disconnected");
     delete players[socket.id];
   });
 
+  //When a player sends an update of its inputs
   socket.on('movement', function (movement) {
     var player = players[socket.id] || {};
     player.movement = movement;
   });
 
-  socket.on('shooting', function(){
+  //When a players says that it is shooting
+  socket.on('shooting', function () {
     players[socket.id].shooting = true;
-  })
+  });
+
+  //When a player is dead and wants to respawn
+  socket.on('respawn', function () {
+    var player = players[socket.id] || {};
+    if (player) {
+      if (player.player.state.gameover) { //If the player is dead and wants to respawn
+        players[socket.id] = {
+          player: new Player(),
+          movement: [],
+          shooting: false,
+        };
+      }
+    }
+  });
 });
 
+//Perfrom the update on everyone's positions
 setInterval(function () {
-  for (var id in players) {
+  for (var id in players) { //For each player
     let player = players[id];
-    if (player) {
-      player.player.movement(player.movement[0], player.movement[1], player.movement[2], player.shooting);
-      if(player.shooting) player.shooting = false; //Already shot so cancel the next shooting
-      player.player.shooting();
+
+    if (player && !player.player.state.gameover) { //If found a player and he is not dead
+      player.player.movement(player.movement[0], player.movement[1], player.movement[2], player.shooting); //Move the player according to his input
+      if (player.shooting) player.shooting = false; //Already shot so cancel the next shooting
+      player.player.shooting(); //Move the bullets
+
+      for (var id_bullet in players) { //Go through all the players
+        if (id_bullet !== id) { //It is not the player
+          let player_bullet = players[id_bullet]; //Get the "enemy" with that id
+          if (player_bullet) { //If found an enemy
+            let bullets = player_bullet.player.bullets; //Get the bullets of that enemy
+            for (var bullet of bullets) { //For each bullet that he has shot
+              let was_shot = player.player.shot(bullet[0], bullet[1]); //See if the player was shot
+              if (was_shot) {
+                player.player.state.gameover = true;
+                player.player.bullets = [[-1, -1, 0, 0]]; //Resets the bullets of the player that died
+
+                //Deletes the bullet that shot us
+                let idx = bullets.indexOf(bullet);
+                if (idx !== -1) {
+                  bullets.splice(idx, 1);
+                  //console.log(bullets);
+                }
+              }
+            }
+          }
+        }
+      }
     }
+    io.sockets.emit('update', players); //Send the info about all the players
   }
-  io.sockets.emit('update', players);
 }, 1000 / FPS);
+
 
 class Player {
 
@@ -85,6 +128,7 @@ class Player {
       x: w_canvas / 2,
       y: h_canvas / 2,
       direction: 0,
+      gameover: false,
     }
     this.velocity = 0;
     this.velocity_direction = 0;
@@ -92,7 +136,7 @@ class Player {
     this.bullets = [[-1, -1, 0, 0]];
   }
 
-  movement(forward, left, right, shooting) {
+  movement(forward, left, right, shooting) { //Depending on the player input calculate the new position and create or not a bullet
 
     var x_velocity = 0;
     var y_velocity = 0;
@@ -151,7 +195,7 @@ class Player {
     this.state.y = (this.state.y + h_canvas + y_velocity) % h_canvas;
   }
 
-  shooting() {
+  shooting() { //Update all of the players bullets
     //console.log('shooting', this.bullets.length);
     if (this.bullets.length > 1) {
       for (var bullet of this.bullets) {
@@ -173,10 +217,21 @@ class Player {
     }
   }
 
-  outofbondaries(bullet) {
+  outofbondaries(bullet) { //Check if the bullet left the screen
     if (bullet[2] > 0 && bullet[0] > w_canvas) return true;
     if (bullet[2] < 0 && bullet[0] < 0) return true;
     if (bullet[3] < 0 && bullet[1] < 0) return true;
     if (bullet[3] > 0 && bullet[1] > h_canvas) return true;
+  }
+
+  shot(bullet_x, bullet_y) { //Check if a bullet collided with the player
+    let x = this.state.x - bullet_x;
+    let y = this.state.y - bullet_y;
+
+
+    let distance = Math.sqrt(x * x + y * y);
+    if (distance < player_hitbox + bullet_size) { //There as a collision
+      return true;
+    }
   }
 }
