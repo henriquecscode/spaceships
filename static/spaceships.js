@@ -1,5 +1,7 @@
 //Client side
 
+var context;
+
 var w_canvas = 900;
 var h_canvas = 580;
 var FPS = 60;
@@ -8,29 +10,47 @@ var player_wingspan = 16;
 var player_height = 16;
 var bullet_size = 2;
 var bullet_delay = 100;
+var name;
 
 var socket = io();
 var socket_id;
+
 var gameover = false;
+var gameover_text;
+var gameover_text_width;
 
-var context = document.querySelector("canvas").getContext('2d');
-context.canvas.width = w_canvas;
-context.canvas.height = h_canvas;
+function Name() {
+  console.log("running");
+  name = document.getElementById("name").value;
+  if (name) {
+    console.log("Initializing");
+    Initialize();
+  }
+}
 
-var gameover_text = "Press ENTER to restart";
-context.font = "25px Arial";
-var gameover_text_width = context.measureText(gameover_text).width;
+function Initialize() {
 
-socket.emit('joining'); //Say that we joined
+  context = document.querySelector("canvas").getContext('2d');
+  context.canvas.width = w_canvas;
+  context.canvas.height = h_canvas;
 
-setInterval(function () { //Send to the server our inputs
-  //console.log('processing');
-  let movement = controller.movement();
-  controller.shooting = false;
-  //console.log(movement);
-  //console.log(movement);
-  socket.emit('movement', movement);
-}, 1000 / FPS)
+  gameover_text = "Press ENTER to restart";
+  context.font = "25px Arial";
+  gameover_text_width = context.measureText(gameover_text).width;
+  socket.emit('joining', name); //Say that we joined
+
+  document.addEventListener("keydown", controller.keyListener);
+  document.addEventListener("keyup", controller.keyListener);//Client side
+
+  setInterval(function () { //Send to the server our inputs
+    //console.log('processing');
+    let movement = controller.movement();
+    controller.shooting = false;
+    //console.log(movement);
+    //console.log(movement);
+    socket.emit('movement', movement);
+  }, 1000 / FPS)
+}
 
 
 socket.on('connect', () => { //When the server gets our answer it tells us the id
@@ -47,9 +67,10 @@ socket.on('update', function (players) { //When the server tells us the statee o
   for (var id in players) { //Go through all the players
 
     let player = players[id].player;
+    let name = players[id].name;
     var color = "#0000ff";
     if (id === socket_id) color = "#ffffff";
-    if (!player.state.gameover) Player_Print(parseInt(player.state.x), parseInt(player.state.y), player.state.direction, color); //Print the player
+    if (!player.state.gameover) Player_Print(parseInt(player.state.x), parseInt(player.state.y), player.state.direction, color, name); //Print the player
     Bullet_Print(player); //Print the bullets of that player
     if (id === socket_id && player.state.gameover) { //We were killed
 
@@ -100,11 +121,14 @@ var controller = {
 
 }
 
-function Player_Print(x, y, direction, color = "#0000ff") {
+function Player_Print(x, y, direction, color = "#0000ff", name) {
+  console.log(name);
 
   //console.log('print', x, y, direction);
 
   context.fillStyle = color;
+  context.font = "10px Arial";
+  name_width = context.measureText(name).width;
 
   //Draws the player
   context.translate(x, y); //Makes the coords relative to the center of the player
@@ -117,6 +141,11 @@ function Player_Print(x, y, direction, color = "#0000ff") {
   context.lineTo(-player_wingspan / 2, player_height / 2);
   context.fill();
   context.rotate(-direction); //Cancels the rotation
+
+  //Draw the name
+  context.fillStyle = "#ffffff";
+  context.fillText(name, -name_width / 2, player_height, 40);
+
   context.translate(-x, -y); //Makes the coords absolute again
 
 }
@@ -131,6 +160,3 @@ function Bullet_Print(player) {
     context.fill();
   }
 }
-
-document.addEventListener("keydown", controller.keyListener);
-document.addEventListener("keyup", controller.keyListener);

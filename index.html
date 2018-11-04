@@ -1,17 +1,23 @@
 <html>
-  <head>
-    <title>A Multiplayer Game</title>
-    <style>
-      canvas {
+
+<head>
+  <title>A Multiplayer Game</title>
+  <style>
+    canvas {
         width: 900px;
         height: 600px;
-        border: 5px solid black;
       }
     </style>
-    <script src="/socket.io/socket.io.js"></script>
-  </head>
-  <body>
-    <canvas id="canvas"></canvas>
-  </body>
+  <script src="/socket.io/socket.io.js"></script>
+</head>
+
+<body>
   <script src="/static/spaceships.js"></script>
+  <form>
+    <input type="text" placeholder="Your Name" id="name">
+    <input type="button" value="Start" onclick="Name()" />
+  </form>
+  <canvas id="canvas"></canvas>
+</body>
+
 </html>

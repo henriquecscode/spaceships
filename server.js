@@ -39,9 +39,10 @@ var player_hitbox = 5;
 io.on('connection', function (socket) {
 
   //When a new player joins
-  socket.on('joining', function () {
-    console.log('Connect from ' + socket.id);
+  socket.on('joining', function (name) {
+    console.log('Connect from ' + socket.id + " as " + name);
     players[socket.id] = {
+      name: name,
       player: new Player(),
       movement: [],
       shooting: false,
