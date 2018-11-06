@@ -110,7 +110,7 @@ var controller = {
         }
         break;
       case 13:
-        socket.emit('respawn');
+        socket.emit('respawn', name);
         break;
     }
   },

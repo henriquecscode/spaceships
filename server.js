@@ -70,7 +70,7 @@ io.on('connection', function (socket) {
   });
 
   //When a player is dead and wants to respawn
-  socket.on('respawn', function () {
+  socket.on('respawn', function (name) {
     var player = players[socket.id] || {};
     if (player) {
       if (player.player.state.gameover) { //If the player is dead and wants to respawn
@@ -78,6 +78,7 @@ io.on('connection', function (socket) {
           player: new Player(),
           movement: [],
           shooting: false,
+          name: name,
         };
       }
     }
